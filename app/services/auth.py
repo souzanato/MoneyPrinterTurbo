@@ -9,7 +9,6 @@ import hashlib
 import secrets
 
 import streamlit as st
-import streamlit.components.v1 as components
 from loguru import logger
 
 from app.config import config
@@ -107,27 +106,31 @@ def require_auth() -> None:
     st.title(":lock: MoneyPrinterTurbo")
     st.caption("Faça login para continuar")
 
-    with st.form("login_form", clear_on_submit=True):
-        username = st.text_input("Usuário", placeholder="Digite seu usuário")
-        password = st.text_input("Senha", type="password", placeholder="Digite sua senha")
-        submitted = st.form_submit_button("Entrar", use_container_width=True)
+    # Show any previous login error (set in session state on the prior run)
+    if st.session_state.get("_login_error"):
+        st.error(st.session_state._login_error)
+        st.session_state._login_error = None
 
-        if submitted:
-            if not username or not password:
-                st.error("Preencha usuário e senha.")
-            elif check_credentials(username, password):
-                st.session_state.authenticated = True
-                st.session_state.username = username
-                logger.info(f"User '{username}' logged in successfully")
-                # Use a full-page reload via JS instead of st.rerun() to avoid
-                # the Streamlit 1.58 "Bad delta path index" frontend bug that
-                # corrupts the WebSocket state after form submit + rerun.
-                components.html(
-                    "<script>window.parent.location.reload()</script>",
-                    height=0,
-                )
-                st.stop()
-            else:
-                st.error("Usuário ou senha inválidos.")
+    username = st.text_input(
+        "Usuário", placeholder="Digite seu usuário", key="auth_username"
+    )
+    password = st.text_input(
+        "Senha", type="password", placeholder="Digite sua senha", key="auth_password"
+    )
+
+    if st.button("Entrar", use_container_width=True, key="auth_login_btn"):
+        if not username or not password:
+            st.session_state._login_error = "Preencha usuário e senha."
+        elif check_credentials(username, password):
+            st.session_state.authenticated = True
+            st.session_state.username = username
+            st.session_state._login_error = None
+            logger.info(f"User '{username}' logged in successfully")
+        else:
+            st.session_state._login_error = "Usuário ou senha inválidos."
+        # Regular st.button() + st.rerun() does not trigger the Streamlit
+        # "Bad delta path index" bug — that bug is specific to
+        # st.form_submit_button() combined with st.rerun().
+        st.rerun()
 
     st.stop()
