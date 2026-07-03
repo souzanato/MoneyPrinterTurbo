@@ -1782,6 +1782,23 @@ if start_button:
     except Exception:
         pass
 
+    # Download links — convert local task paths to public download URLs
+    if video_files:
+        st.markdown("### :arrow_down: " + tr("Download Videos"))
+        download_cols = st.columns(len(video_files))
+        for i, video_path in enumerate(video_files):
+            download_url = utils.task_file_to_uri(video_path, route_prefix="download")
+            filename = os.path.basename(video_path)
+            download_cols[i].markdown(
+                f'<a href="{download_url}" target="_blank" '
+                f'style="display:inline-block;padding:0.6rem 1.2rem;'
+                f'background-color:#4CAF50;color:white;text-decoration:none;'
+                f'border-radius:0.5rem;font-weight:bold;text-align:center;'
+                f'width:100%;">'
+                f'&#x1F4E5; {filename}</a>',
+                unsafe_allow_html=True,
+            )
+
     open_task_folder(task_id)
     logger.info(tr("Video Generation Completed"))
     scroll_to_bottom()

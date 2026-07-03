@@ -307,5 +307,53 @@ def load_locales(i18n_dir):
     return _locales
 
 
+def task_file_to_uri(file: str, route_prefix: str = "tasks") -> str:
+    """Convert a local task output file path to a publicly accessible URI.
+
+    Parameters
+    ----------
+    file : str
+        Local filesystem path to a file inside ``storage/tasks/`` (e.g.
+        ``/.../storage/tasks/<uuid>/final-1.mp4``), or an already-remote
+        ``http://`` / ``https://`` URL.
+    route_prefix : str
+        URI prefix to use. Default ``"tasks"`` for static/streaming access;
+        pass ``"download"`` to produce a download-endpoint URI that forces
+        ``Content-Disposition: attachment``.
+
+    Returns
+    -------
+    str
+        - If ``endpoint`` is configured in ``config.toml``:
+          ``{endpoint}/{route_prefix}/<uuid>/<filename>``
+        - Otherwise: ``/{route_prefix}/<uuid>/<filename>``
+        - If *file* is not a string or is already an HTTP(S) URL, it is
+          returned unchanged (defensive fallback).
+    """
+    if not isinstance(file, str):
+        return file
+
+    if file.startswith(("http://", "https://")):
+        return file
+
+    from app.config import config
+    from app.utils import file_security
+
+    endpoint = config.app.get("endpoint", "").strip()
+
+    try:
+        resolved = file_security.resolve_path_within_directory(task_dir(), file)
+    except ValueError:
+        logger.warning(f"skip unsafe task output path: {file}")
+        return file
+
+    relative = os.path.relpath(resolved, task_dir()).replace("\\", "/")
+    uri_path = f"{route_prefix}/{relative}"
+
+    if endpoint:
+        return f"{endpoint.rstrip('/')}/{uri_path}"
+    return f"/{uri_path}"
+
+
 def parse_extension(filename):
     return Path(filename).suffix.lower().lstrip('.')
