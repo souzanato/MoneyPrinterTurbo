@@ -106,31 +106,38 @@ def require_auth() -> None:
     st.title(":lock: MoneyPrinterTurbo")
     st.caption("Faça login para continuar")
 
-    # Show any previous login error (set in session state on the prior run)
-    if st.session_state.get("_login_error"):
-        st.error(st.session_state._login_error)
-        st.session_state._login_error = None
+    # Show any previous login error, then clear it so it doesn't persist
+    error_msg = st.session_state.pop("_login_error", None)
+    if error_msg:
+        st.error(error_msg)
 
-    username = st.text_input(
+    st.text_input(
         "Usuário", placeholder="Digite seu usuário", key="auth_username"
     )
-    password = st.text_input(
+    st.text_input(
         "Senha", type="password", placeholder="Digite sua senha", key="auth_password"
     )
 
-    if st.button("Entrar", use_container_width=True, key="auth_login_btn"):
-        if not username or not password:
+    def _handle_login():
+        """on_click callback — runs BEFORE the script body, so session state
+        mutations are visible immediately without needing st.rerun()."""
+        u = st.session_state.get("auth_username", "")
+        p = st.session_state.get("auth_password", "")
+        if not u or not p:
             st.session_state._login_error = "Preencha usuário e senha."
-        elif check_credentials(username, password):
+        elif check_credentials(u, p):
             st.session_state.authenticated = True
-            st.session_state.username = username
+            st.session_state.username = u
             st.session_state._login_error = None
-            logger.info(f"User '{username}' logged in successfully")
+            logger.info(f"User '{u}' logged in successfully")
         else:
             st.session_state._login_error = "Usuário ou senha inválidos."
-        # Regular st.button() + st.rerun() does not trigger the Streamlit
-        # "Bad delta path index" bug — that bug is specific to
-        # st.form_submit_button() combined with st.rerun().
-        st.rerun()
+
+    st.button(
+        "Entrar",
+        use_container_width=True,
+        key="auth_login_btn",
+        on_click=_handle_login,
+    )
 
     st.stop()
