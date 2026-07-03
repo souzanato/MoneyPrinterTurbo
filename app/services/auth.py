@@ -9,6 +9,7 @@ import hashlib
 import secrets
 
 import streamlit as st
+import streamlit.components.v1 as components
 from loguru import logger
 
 from app.config import config
@@ -118,7 +119,14 @@ def require_auth() -> None:
                 st.session_state.authenticated = True
                 st.session_state.username = username
                 logger.info(f"User '{username}' logged in successfully")
-                st.rerun()
+                # Use a full-page reload via JS instead of st.rerun() to avoid
+                # the Streamlit 1.58 "Bad delta path index" frontend bug that
+                # corrupts the WebSocket state after form submit + rerun.
+                components.html(
+                    "<script>window.parent.location.reload()</script>",
+                    height=0,
+                )
+                st.stop()
             else:
                 st.error("Usuário ou senha inválidos.")
 
