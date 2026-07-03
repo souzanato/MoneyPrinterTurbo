@@ -155,6 +155,7 @@ def save_config():
         _cfg["elevenlabs"] = elevenlabs
         _cfg["chatterbox"] = chatterbox
         _cfg["ui"] = ui
+        # users is written directly to _cfg by the auth module; keep it as-is.
         f.write(toml.dumps(_cfg))
 
 
@@ -172,6 +173,7 @@ ui = _cfg.get(
         "hide_log": False,
     },
 )
+users = _cfg.get("users", {})
 
 hostname = socket.gethostname()
 

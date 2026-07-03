@@ -25,6 +25,7 @@ from app.models.schema import (
 )
 from app.services import llm, voice
 from app.services import task as tm
+from app.services.auth import require_auth
 from app.utils import utils
 
 st.set_page_config(
@@ -50,6 +51,9 @@ h1 {
 </style>
 """
 st.markdown(streamlit_style, unsafe_allow_html=True)
+
+# Authentication gate — shows login form and stops execution if not authenticated
+require_auth()
 
 # 定义资源目录
 font_dir = os.path.join(root_dir, "resource", "fonts")

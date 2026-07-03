@@ -396,6 +396,22 @@ api_key = ""
 # Model: eleven_multilingual_v2 | eleven_flash_v2_5 | eleven_v3
 model_id = "eleven_multilingual_v2"
 
+# WebUI authentication users.
+# Each user has a password_hash (PBKDF2-SHA256, 100 000 iterations) and salt.
+# On first run, if no users are configured, a default user is created:
+#   username: renato
+#   password: 2037Amok@
+# You can also add users here before starting the app:
+#
+# [users.renato]
+# password_hash = "..."
+# salt = "..."
+#
+# [users.john]
+# password_hash = "..."
+# salt = "..."
+[users]
+
 [ui]
 # UI related settings
 # 是否隐藏日志信息
