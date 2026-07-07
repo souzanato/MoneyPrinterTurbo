@@ -77,7 +77,7 @@ def _parse_chatterbox_voices(voices):
 
 def _sync_chatterbox_config_from_session_state():
     # Streamlit 的按钮会触发整页 rerun，而 Chatterbox 配置输入框位于
-    # “试听语音合成”按钮之后。如果试听时只读取 config.chatterbox，可能拿不到
+    # '试听语音合成'按钮之后。如果试听时只读取 config.chatterbox，可能拿不到
     # 用户刚在输入框里填入的 base_url/model/voices。先从 session_state 同步一次，
     # 可以保证按钮逻辑和输入框显示逻辑使用同一份最新配置。
     config.chatterbox["base_url"] = (
@@ -381,14 +381,17 @@ if not config.app.get("hide_config", False):
 
             # Streamlit 会把没有 key 的 selectbox 视为一个由 label/options/index
             # 共同决定的临时控件。如果每次选择后都根据 config.app 重新计算 index，
-            # 用户第一次切换 provider 后控件可能被重建，表现为“必须选择两次才生效”。
+            # 用户第一次切换 provider 后控件可能被重建，表现为'必须选择两次才生效'。
             # 这里用稳定的 provider id 作为真实选项，并给控件固定 key；展示文案只
             # 通过 format_func 转换，避免 UI 文案变化影响状态。
-            if st.session_state.get("llm_provider_select") not in (
-                None,
-                *llm_provider_ids,
-            ):
-                del st.session_state["llm_provider_select"]
+            #
+            # NOTA: NAO use del st.session_state['llm_provider_select'] - deletar
+            # a chave de um widget durante o script corrompe a arvore de delta do
+            # Streamlit e causa 'Bad delta path index'. Em vez disso, apenas corrija
+            # o valor da chave se estiver invalido.
+            current_select = st.session_state.get('llm_provider_select')
+            if current_select not in (None, *llm_provider_ids):
+                st.session_state['llm_provider_select'] = saved_llm_provider
 
             llm_provider = st.selectbox(
                 tr("LLM Provider"),
@@ -1574,18 +1577,26 @@ with right_panel:
     with st.expander(tr("Click to show API Key management"), expanded=False):
         st.subheader(tr("Manage Pexels, Pixabay and Coverr API Keys"))
 
-        col1, col2, col3 = st.tabs([
-            tr("Pexels API Keys"),
-            tr("Pixabay API Keys"),
-            tr("Coverr API Keys"),
-        ])
+        # NOTA: st.tabs é notoriamente bugado no Streamlit 1.58 e causa
+        # "Bad delta path index". Usamos st.radio + renderização condicional
+        # para evitar corromper a árvore de delta do frontend.
+        api_key_tab = st.radio(
+            tr("API Key Provider"),
+            options=["pexels", "pixabay", "coverr"],
+            format_func=lambda x: {
+                "pexels": tr("Pexels API Keys"),
+                "pixabay": tr("Pixabay API Keys"),
+                "coverr": tr("Coverr API Keys"),
+            }[x],
+            horizontal=True,
+            key="api_key_provider_radio",
+        )
 
-        with col1:
+        if api_key_tab == "pexels":
             st.subheader(tr("Pexels API Keys"))
             if config.app["pexels_api_keys"]:
                 st.write(tr("Current Keys:"))
-                for key in config.app["pexels_api_keys"]:
-                    st.code(key)
+                st.code("\n".join(config.app["pexels_api_keys"]))
             else:
                 st.info(tr("No Pexels API Keys currently"))
 
@@ -1609,13 +1620,12 @@ with right_panel:
                     config.save_config()
                     st.success(tr("Pexels API Key deleted successfully"))
 
-        with col2:
+        elif api_key_tab == "pixabay":
             st.subheader(tr("Pixabay API Keys"))
 
             if config.app["pixabay_api_keys"]:
                 st.write(tr("Current Keys:"))
-                for key in config.app["pixabay_api_keys"]:
-                    st.code(key)
+                st.code("\n".join(config.app["pixabay_api_keys"]))
             else:
                 st.info(tr("No Pixabay API Keys currently"))
 
@@ -1639,7 +1649,7 @@ with right_panel:
                     config.save_config()
                     st.success(tr("Pixabay API Key deleted successfully"))
 
-        with col3:
+        else:  # coverr
             st.subheader(tr("Coverr API Keys"))
 
             # 与 pexels/pixabay 不同,coverr_api_keys 是 PR 新增配置项,
@@ -1650,8 +1660,7 @@ with right_panel:
 
             if config.app["coverr_api_keys"]:
                 st.write(tr("Current Keys:"))
-                for key in config.app["coverr_api_keys"]:
-                    st.code(key)
+                st.code("\n".join(config.app["coverr_api_keys"]))
             else:
                 st.info(tr("No Coverr API Keys currently"))
 
