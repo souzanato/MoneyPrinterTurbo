@@ -99,6 +99,24 @@ def require_auth() -> None:
         st.session_state.authenticated = False
         st.session_state.username = None
 
+    # IMPORTANT: check _needs_reload BEFORE the authenticated early return.
+    # After login the on_click callback sets authenticated=True AND
+    # _needs_reload=True simultaneously. On the next rerun, if we return early
+    # for authenticated users before reaching this block, the reload never
+    # fires and Streamlit's delta protocol tries to update the login-page
+    # widget tree with the full-app deltas — causing "Bad delta path" errors.
+    if st.session_state.get("_needs_reload"):
+        st.session_state.pop("_needs_reload")
+        # A hard browser reload resets the Streamlit frontend from scratch so
+        # it starts in sync with the full-app widget tree. Streamlit 1.58
+        # reconnects to the same server-side session via cookie, preserving
+        # authenticated=True across the reload.
+        st.components.v1.html(
+            """<script>window.parent.location.reload();</script>""",
+            height=0,
+        )
+        st.stop()
+
     if st.session_state.authenticated:
         return
 
@@ -140,19 +158,5 @@ def require_auth() -> None:
         key="auth_login_btn",
         on_click=_handle_login,
     )
-
-    # After successful login the on_click callback sets _needs_reload.
-    # We force a hard browser reload here because Streamlit 1.58's delta
-    # protocol cannot safely transition from the minimal login page to the
-    # full app — the computed delta references container indices that don't
-    # exist in the old widget tree, causing the infamous "Bad delta path"
-    # error. A browser reload renders the full app from scratch, cleanly.
-    if st.session_state.get("_needs_reload"):
-        st.session_state.pop("_needs_reload")
-        st.components.v1.html(
-            """<script>window.parent.location.reload();</script>""",
-            height=0,
-        )
-        st.stop()
 
     st.stop()
