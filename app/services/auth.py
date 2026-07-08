@@ -82,11 +82,18 @@ def init_default_users() -> None:
     logger.info("Default user 'renato' created successfully")
 
 
-def require_auth() -> None:
+def require_auth(container=None) -> None:
     """Streamlit authentication gate.
 
     Call once at the top of the Streamlit app (after st.set_page_config).
     If the user is not authenticated, renders a login form and calls st.stop().
+
+    Pass a ``container`` (from ``st.container()``) so that the login widgets
+    are rendered INSIDE that block instead of at the page root level.  Keeping
+    root[1] the same block type in both the login and the full-app states
+    prevents the Streamlit 1.58 "Bad delta path" crash that occurs when a
+    leaf element at root[1] (the login title) is replaced by a block element
+    (the app's st.columns) during the login→app rerun transition.
     """
     init_default_users()
 
@@ -97,18 +104,23 @@ def require_auth() -> None:
     if st.session_state.authenticated:
         return
 
-    # --- Login page ---
-    st.title(":lock: MoneyPrinterTurbo")
-    st.caption("Faça login para continuar")
+    # Render the login form inside the provided container so that all login
+    # widgets live as children of root[1], not as separate root-level elements.
+    # When the user logs in and the app reruns, root[1] stays a container block
+    # (just empty now) and the full app's elements appear fresh at root[2]+.
+    _ui = container if container is not None else st
+
+    _ui.title(":lock: MoneyPrinterTurbo")
+    _ui.caption("Faça login para continuar")
 
     error_msg = st.session_state.pop("_login_error", None)
     if error_msg:
-        st.error(error_msg)
+        _ui.error(error_msg)
 
-    st.text_input(
+    _ui.text_input(
         "Usuário", placeholder="Digite seu usuário", key="auth_username"
     )
-    st.text_input(
+    _ui.text_input(
         "Senha", type="password", placeholder="Digite sua senha", key="auth_password"
     )
 
@@ -128,7 +140,7 @@ def require_auth() -> None:
         else:
             st.session_state._login_error = "Usuário ou senha inválidos."
 
-    st.button(
+    _ui.button(
         "Entrar",
         use_container_width=True,
         key="auth_login_btn",

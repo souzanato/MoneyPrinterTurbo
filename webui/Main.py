@@ -52,8 +52,14 @@ h1 {
 """
 st.markdown(streamlit_style, unsafe_allow_html=True)
 
-# Authentication gate — shows login form and stops execution if not authenticated
-require_auth()
+# This container is always rendered at root[1] regardless of auth state.
+# When not authenticated the login form renders INSIDE this container (not as
+# separate root-level elements). On the next rerun after login the container
+# is empty and the full app renders at root[2]+, so Streamlit's delta protocol
+# never sees a leaf→block type change at root[1] — which is what causes the
+# "Bad delta path index 5 (should be between [0, 1])" crash in Streamlit 1.58.
+_auth_container = st.container()
+require_auth(_auth_container)
 
 # 定义资源目录
 font_dir = os.path.join(root_dir, "resource", "fonts")
